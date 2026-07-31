@@ -1,0 +1,46 @@
+### Python ###
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+### Conda / environments ###
+env/
+venv/
+*.conda
+
+### GROMACS / MD (md/) -- generated per-run outputs ###
+# 01_prep_protein.sh, 02_prep_molecule.sh, 03_run_md.sh each write into a
+# freshly created output directory (e.g. gsta1_prepped/, gsh_prepped/) --
+# fully regenerable from the scripts + md/system/raw_pdb inputs, so those
+# directories are ignored wholesale rather than by extension.
+md/system/*_prepped/
+md/system/*_output/
+mdout.mdp
+#*#
+*~
+
+### AutoDock Vina / docking (docking/) -- generated per-run outputs ###
+docking/ligand_pdbqt/*
+!docking/ligand_pdbqt/.gitkeep
+docking/results/*
+!docking/results/.gitkeep
+docking/logs/*
+!docking/logs/.gitkeep
+ligand_prep_report.csv
+ligand.txt
+
+### SLURM / HPC logs ###
+slurm-*.out
+*.out
+*.err
+ml_pipeline/slurm_logs/*
+!ml_pipeline/slurm_logs/.gitkeep
+
+### OS / editor ###
+.DS_Store
+Thumbs.db
+*.swp
+*.un~
+.vscode/
+.idea/

@@ -1,0 +1,118 @@
+==============================================================================
+ML-ONLY MODEL PERFORMANCE REPORT
+==============================================================================
+Generated: 2026-07-14 11:45:38
+Train samples: 2882 | Test samples: 721 (held out until Stage 3)
+
+------------------------------------------------------------------------------
+1. MODEL CONFIGURATION
+------------------------------------------------------------------------------
+Model: soft-voting ensemble classifier (VotingClassifier, voting='soft')
+Base estimators:
+  - random_forest (RandomForestClassifier), weight=1.0
+      n_estimators = 300
+      max_depth = 3
+      min_samples_split = 500
+      min_samples_leaf = 250
+      class_weight = balanced
+      random_state = 42
+      n_jobs = -1
+  - svm (SVC), weight=1.0
+      kernel = rbf
+      C = 0.3
+      gamma = 0.05
+      class_weight = balanced
+      probability = True
+      random_state = 42
+  - gradient_boosting (GradientBoostingClassifier), weight=1.0
+      n_estimators = 500
+      max_depth = 3
+      learning_rate = 0.02
+      subsample = 0.6
+      min_samples_split = 500
+      min_samples_leaf = 250
+      n_iter_no_change = 20
+      random_state = 42
+Features: RDKit descriptors + electrophilicity descriptors
+  - SMR_VSA7
+  - SMR_VSA9
+  - PEOE_VSA9
+  - SLogP_VSA1
+  - CSP3
+  - omega_global
+  - omega_local_warhead
+  - alert_score
+Decision threshold (train-tuned, MCC-optimal): 0.7700
+
+------------------------------------------------------------------------------
+2. PERFORMANCE METRICS
+------------------------------------------------------------------------------
+  TRAINING SET (n=2882)
+        MCC   RECALL     SPEC     PREC       F1  BAL_ACC    KAPPA  ROC_AUC   PR_AUC   LOGAUC     EF1%     EF5%   BEDROC
+      0.735    0.676    0.998    0.806    0.735    0.837    0.732    0.985    0.734   70.357   64.462   18.801    0.882
+
+  TEST SET (n=721)
+        MCC   RECALL     SPEC     PREC       F1  BAL_ACC    KAPPA  ROC_AUC   PR_AUC   LOGAUC     EF1%     EF5%   BEDROC
+      0.753    0.667    0.999    0.857    0.750    0.833    0.747    0.974    0.572   62.516   60.083   15.156    0.765
+
+------------------------------------------------------------------------------
+3. BOOTSTRAP 95% CONFIDENCE INTERVALS (TEST SET, n=1000)
+------------------------------------------------------------------------------
+  MCC          0.7533 [ 0.4698,  0.9421]
+  RECALL       0.6667 [ 0.3333,  1.0000]
+  SPEC         0.9986 [ 0.9958,  1.0000]
+  PREC         0.8571 [ 0.5000,  1.0000]
+  F1           0.7500 [ 0.4444,  0.9412]
+  BAL_ACC      0.8326 [ 0.6660,  0.9993]
+  KAPPA        0.7472 [ 0.4413,  0.9405]
+  ROC_AUC      0.9741 [ 0.9405,  0.9986]
+  PR_AUC       0.5725 [ 0.2010,  0.9016]
+  LOGAUC      62.5162 [41.9736, 81.0990]
+  EF1%        60.0833 [30.0417, 90.1250]
+  EF5%        15.1562 [ 8.6607, 19.4865]
+  BEDROC       0.7652 [ 0.5190,  0.9726]
+
+------------------------------------------------------------------------------
+4. PROBABILITY CALIBRATION (TEST SET)
+------------------------------------------------------------------------------
+Ensemble model Brier score : 0.0302
+(0 = perfect, lower is better). Reliability curve: ml_calibration.png
+
+------------------------------------------------------------------------------
+5. APPLICABILITY DOMAIN (descriptor-space leverage)
+------------------------------------------------------------------------------
+Descriptors p=8 | train n=2882 | warning leverage h*=0.0083
+Train ligands outside AD: 59
+Test ligands outside AD : 18/721 (2.5%)
+Williams leverage plot saved to applicability_domain.png
+
+------------------------------------------------------------------------------
+6. Y-RANDOMISATION CONTROL (label shuffling)
+------------------------------------------------------------------------------
+Permutations: 100
+True test MCC       : 0.7533
+Null MCC mean+/-sd  : -0.0047 +/- 0.0568
+Null MCC max        : 0.3315
+Empirical p-value   : 0.0099
+  p << 0.05 indicates the model has learnt genuine signal, not chance.
+
+------------------------------------------------------------------------------
+7. PERMUTATION FEATURE IMPORTANCE (TEST SET, dMCC)
+------------------------------------------------------------------------------
+(Model-agnostic; replaces RF-only feature_importances_ since the
+ ensemble mixes RF, SVM, and GB estimators.)
+  SLogP_VSA1           0.2150 +/- 0.0885
+  SMR_VSA7             0.1874 +/- 0.0770
+  alert_score          0.0076 +/- 0.0166
+  PEOE_VSA9            0.0076 +/- 0.0620
+  omega_local_warhead  -0.0009 +/- 0.0260
+  CSP3                 -0.0643 +/- 0.0259
+  omega_global         -0.0720 +/- 0.0308
+  SMR_VSA9             -0.1007 +/- 0.0242
+Bar chart saved to permutation_importance.png
+
+------------------------------------------------------------------------------
+8. SHAP ANALYSIS
+------------------------------------------------------------------------------
+Model-agnostic SHAP via KernelExplainer (background=50 pts, sample=200 pts, nsamples=100).
+Plots saved to shap_summary_ml_train.png / shap_summary_ml_test.png
