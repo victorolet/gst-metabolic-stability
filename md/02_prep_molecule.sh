@@ -4,8 +4,8 @@
 # per Harry's doc: "As per 'Ligand Preprocessing' but renaming UNL to GSH")
 # =============================================================================
 # Automates:
-#   - docked-pose PDBQT -> mol2 (obabel), or accepts a mol2 directly (GSH
-#     co-crystal molecules typically start as mol2/pdb already)
+#   - docked-pose PDBQT, or a raw PDB/mol2, -> mol2 (obabel; mol2 input is
+#     copied through as-is)
 #   - sort_mol2_bonds.pl
 #   - residue renaming (fix_mol2_resname.py -- robust to whatever placeholder
 #     name the upstream tool used, not just a literal '*****')
@@ -18,13 +18,24 @@
 # <resname_lc>.itp/.prm/.top/_ini.pdb. See the LP/LPH note further down for
 # why this does NOT strip LP/LPH lines by default, unlike Harry's original doc.
 #
+# IMPORTANT -- RESNAME must exactly match the "RESI ..." line inside the
+# .str file you're pairing with, not just be a convenient label. CGenFF
+# stream files carry their own internal residue name, and cgenff_charmm2gmx.py
+# looks it up by that exact string. Confirmed from Harry's actual .str files:
+# GSH's stream files (GSH_A/M/P_fixed.str) all say "RESI LIG" (a generic
+# placeholder Harry uses for GSH, NOT "GSH" or "UNL"), while the docked-ligand
+# stream files say "RESI UNL". Check with `grep '^RESI' yourfile.str` before
+# picking RESNAME -- a mismatch fails with a natoms-mismatch error in
+# cgenff_charmm2gmx.py, not a silent wrong answer, but better to get it right
+# first time.
+#
 # Usage:
-#   ./02_prep_molecule.sh input.pdbqt|input.mol2 RESNAME workdir/ [ffdir]
+#   ./02_prep_molecule.sh input.pdbqt|input.pdb|input.mol2 RESNAME workdir/ [ffdir]
 #   STRIP_LP=1 ./02_prep_molecule.sh ...   # force the old LP/LPH-stripping behaviour
 #
 # Examples:
 #   ./02_prep_molecule.sh docked_pose_lig00001.pdbqt UNL runs/lig00001/
-#   ./02_prep_molecule.sh gsh_cofactor.mol2 GSH system/gsh/
+#   ./02_prep_molecule.sh gsh_from_1pkw.pdb LIG system/gsta1_gsh_prepped/
 # =============================================================================
 set -e
 
@@ -44,25 +55,66 @@ if [ ! -f "$INPUT" ]; then
 fi
 
 TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tools"
+# Resolve FFDIR to an absolute path now, before the `cd "$WORKDIR"` below --
+# cgenff_charmm2gmx.py opens "$FFDIR/forcefield.doc" directly using whatever
+# string it's given, so a relative FFDIR (the normal way to invoke this
+# script, e.g. "./topology/...") silently resolves against the wrong
+# directory once we've cd'd into WORKDIR otherwise.
+FFDIR_ABS=$(cd "$(dirname "$FFDIR")" && pwd)/$(basename "$FFDIR")
 mkdir -p "$WORKDIR"
 RESNAME_LC=$(echo "$RESNAME" | tr '[:upper:]' '[:lower:]')
 STR_FILE="$WORKDIR/${RESNAME}.str"
 FIXED_MOL2="$WORKDIR/${RESNAME}_fixed.mol2"
 
 # ---- Stage 1: mol2 prep (cheap, always re-run so edits to INPUT propagate) ----
+resolve_obabel() {
+    # obabel isn't installed in either conda env (openbabel's newest build
+    # tops out at Python 3.12, incompatible with vina's pinned python=3.14)
+    # -- it's built via spack instead. Resolve it in this order: explicit
+    # OBABEL_BIN override > PATH > known spack install.
+    SPACK_OBABEL="/software/projects/pawsey1376/volet/setonix/2025.08/software/linux-sles15-zen3/gcc-14.2.0/openbabel-3.1.1-onem6ip5yyp7artla3orqgwac5biq3ck/bin/obabel"
+    if [ -n "$OBABEL_BIN" ]; then
+        :
+    elif command -v obabel >/dev/null 2>&1; then
+        OBABEL_BIN=obabel
+    elif [ -x "$SPACK_OBABEL" ]; then
+        OBABEL_BIN="$SPACK_OBABEL"
+    else
+        echo "ERROR: obabel not found on PATH, no OBABEL_BIN override set, and"
+        echo "the expected spack install isn't at: $SPACK_OBABEL"
+        echo "Set OBABEL_BIN=/path/to/obabel and re-run."
+        exit 1
+    fi
+}
+
 case "$INPUT" in
     *.pdbqt)
-        echo "[1/3] Converting docked pose PDBQT -> mol2 (obabel)"
-        obabel "$INPUT" -O "$WORKDIR/raw.mol2" 2>&1 | tail -5
+        resolve_obabel
+        echo "[1/3] Converting docked pose PDBQT -> mol2 ($OBABEL_BIN)"
+        "$OBABEL_BIN" "$INPUT" -O "$WORKDIR/raw.mol2" 2>&1 | tail -5
+        ;;
+    *.pdb)
+        resolve_obabel
+        echo "[1/3] Converting PDB -> mol2 ($OBABEL_BIN)"
+        "$OBABEL_BIN" "$INPUT" -O "$WORKDIR/raw.mol2" 2>&1 | tail -5
         ;;
     *.mol2)
         cp "$INPUT" "$WORKDIR/raw.mol2"
         ;;
     *)
-        echo "ERROR: input must be .pdbqt or .mol2, got: $INPUT"
+        echo "ERROR: input must be .pdbqt, .pdb, or .mol2, got: $INPUT"
         exit 1
         ;;
 esac
+
+# sort_mol2_bonds.pl (third-party, unmodified -- see tools/ header) hard-
+# requires the file to start with a "TRIPOS" line and dies otherwise.
+# Mol2 files exported from PyMOL (e.g. Harry's "GSH_*_fixed.mol2") carry a
+# leading "# created with PyMOL ..." comment line that trips this. Strip
+# anything before the first TRIPOS line here rather than patching the
+# third-party script, since this is likely to recur for every PyMOL-
+# exported mol2 Harry sends (ligands included).
+awk '/TRIPOS/{f=1} f' "$WORKDIR/raw.mol2" > "$WORKDIR/raw.mol2.tmp" && mv "$WORKDIR/raw.mol2.tmp" "$WORKDIR/raw.mol2"
 
 echo "[2/3] Sorting mol2 bond order (sort_mol2_bonds.pl)"
 perl "$TOOLS_DIR/sort_mol2_bonds.pl" "$WORKDIR/raw.mol2" "$WORKDIR/sorted.mol2"
@@ -112,7 +164,7 @@ fi
 echo "Running cgenff_charmm2gmx.py"
 cd "$WORKDIR"
 python3 "$TOOLS_DIR/cgenff_charmm2gmx.py" "$RESNAME" \
-    "$(basename "$FIXED_MOL2")" "$(basename "$STR_TO_USE")" "$FFDIR"
+    "$(basename "$FIXED_MOL2")" "$(basename "$STR_TO_USE")" "$FFDIR_ABS"
 
 echo ""
 echo "[OK] Molecule prep complete: ${RESNAME_LC}.itp / ${RESNAME_LC}.prm / ${RESNAME_LC}_ini.pdb in $WORKDIR"

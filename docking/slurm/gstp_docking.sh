@@ -22,7 +22,7 @@
 # scale CHUNK_SIZE and --time for the full run accordingly.
 #
 # Folder layout expected (relative to docking/):
-#   receptors/GSTP1-1_GSH.pdbqt  configs/config_P1.txt  scripts/Vina_rigid_P.pl
+#   receptors/1AQW_GSH.pdbqt  configs/config_P1.txt  scripts/Vina_rigid_P.pl
 #   ligand_pdbqt/  ligand.txt  logs/  results/
 #
 # SUBMIT FROM THE docking/ DIRECTORY (so $SLURM_SUBMIT_DIR resolves there),
@@ -56,7 +56,7 @@ conda activate vina
 # Paths
 EXECUTABLE=$SLURM_SUBMIT_DIR/scripts/Vina_rigid_P.pl
 CONFIG=$SLURM_SUBMIT_DIR/configs/config_P1.txt
-RECEPTOR=$SLURM_SUBMIT_DIR/receptors/GSTP1-1_GSH.pdbqt
+RECEPTOR=$SLURM_SUBMIT_DIR/receptors/1AQW_GSH.pdbqt
 LIGAND_DIR=$SLURM_SUBMIT_DIR/ligand_pdbqt
 MASTER_LIST=$SLURM_SUBMIT_DIR/ligand.txt
 CHUNK_SIZE=50
@@ -116,4 +116,6 @@ cd "$SLURM_SUBMIT_DIR"
 rm -rf "$SCRATCH"
 
 echo "Results saved to: $RESULTS"
-[ $EXIT_CODE -ne 0 ] && exit $EXIT_CODE
+# (not `[ $EXIT_CODE -ne 0 ] && exit $EXIT_CODE` -- see gsta_docking.sh for
+# why that leaves a spurious nonzero exit status on success)
+exit $EXIT_CODE

@@ -124,6 +124,10 @@ def main():
     ap.add_argument("--outdir", default="ligand_pdbqt", help="Directory for output PDBQT files")
     ap.add_argument("--nprocs", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     ap.add_argument("--limit", type=int, default=None, help="Only process the first N rows (for testing)")
+    ap.add_argument("--ids", type=str, default=None,
+                     help="Comma-separated list of specific ligand IDs to include, e.g. for "
+                          "topping up a --limit test batch with IDs you already have CGenFF "
+                          ".str files for. Combined (union) with --limit if both are given.")
     args = ap.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
@@ -135,8 +139,15 @@ def main():
     log = logging.getLogger(__name__)
 
     df = load_ligands(args.input)
+    selected = None
+    if args.ids:
+        wanted = {int(x) for x in args.ids.split(",") if x.strip()}
+        selected = df[df["ID"].astype(int).isin(wanted)]
     if args.limit:
-        df = df.head(args.limit)
+        head_df = df.head(args.limit)
+        selected = head_df if selected is None else pd.concat([selected, head_df]).drop_duplicates(subset="ID")
+    if selected is not None:
+        df = selected.sort_values("ID")
 
     jobs = [(row["ID"], row["SMILES"], args.outdir) for _, row in df.iterrows()]
     log.info("Preparing %d ligands with %d processes -> %s/", len(jobs), args.nprocs, args.outdir)

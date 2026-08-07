@@ -30,8 +30,14 @@
 # scale CHUNK_SIZE and --time for the full run accordingly.
 #
 # Folder layout expected (relative to docking/):
-#   receptors/GSTA1-1_GSH.pdbqt  configs/config_A1.txt  scripts/Vina_rigid_A.pl
+#   receptors/1PKW_GSH.pdbqt  configs/config_A1.txt  scripts/Vina_rigid_A.pl
 #   ligand_pdbqt/  ligand.txt  logs/  results/
+#
+# NOTE (2026-08-06): receptor/config updated to Harry's raw-PDB-coordinate
+# versions -- config_A1.txt's own "receptor=" line must match the filename
+# actually staged into scratch (see RECEPTOR= below), since Vina reads the
+# receptor path from inside the config file, not from this script directly.
+# Old overlaid-frame files are kept in receptors/configs/legacy_overlaid/.
 #
 # SUBMIT FROM THE docking/ DIRECTORY (so $SLURM_SUBMIT_DIR resolves there),
 # with the array size derived from the ligand count, e.g.:
@@ -64,7 +70,7 @@ conda activate vina
 # Paths
 EXECUTABLE=$SLURM_SUBMIT_DIR/scripts/Vina_rigid_A.pl
 CONFIG=$SLURM_SUBMIT_DIR/configs/config_A1.txt
-RECEPTOR=$SLURM_SUBMIT_DIR/receptors/GSTA1-1_GSH.pdbqt
+RECEPTOR=$SLURM_SUBMIT_DIR/receptors/1PKW_GSH.pdbqt
 LIGAND_DIR=$SLURM_SUBMIT_DIR/ligand_pdbqt
 MASTER_LIST=$SLURM_SUBMIT_DIR/ligand.txt
 CHUNK_SIZE=50
@@ -124,4 +130,9 @@ cd "$SLURM_SUBMIT_DIR"
 rm -rf "$SCRATCH"
 
 echo "Results saved to: $RESULTS"
-[ $EXIT_CODE -ne 0 ] && exit $EXIT_CODE
+# (not `[ $EXIT_CODE -ne 0 ] && exit $EXIT_CODE` -- when EXIT_CODE is 0 the
+# test itself evaluates false/exit-1, and since nothing else runs after it,
+# THAT becomes the script's own exit status -- SLURM then reports the task
+# as FAILED even though everything upstream genuinely succeeded. Exiting
+# with $EXIT_CODE directly avoids the trap entirely.)
+exit $EXIT_CODE

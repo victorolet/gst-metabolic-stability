@@ -38,8 +38,13 @@
 # confused). Strip all non-protein HETATM records (GSH included) before
 # running this script.
 #
+# --allow-missing passes -missing through to pdb2gmx, letting it geometry-
+# idealize side-chain atoms the crystal structure didn't resolve (check the
+# PDB's REMARK 470 section first -- if it lists missing atoms, you need this
+# flag or pdb2gmx errors out instead of silently guessing anything).
+#
 # Usage:
-#   ./01_prep_protein.sh protein.pdb outdir/ [ffdir] [--nterm N] [--cterm N]
+#   ./01_prep_protein.sh protein.pdb outdir/ [ffdir] [--nterm N] [--cterm N] [--allow-missing]
 # =============================================================================
 set -e
 
@@ -48,14 +53,20 @@ OUTDIR=$2
 FFDIR=${3:-charmm36-jul2022.ff}
 NTERM=""
 CTERM=""
+ALLOW_MISSING=0
 shift 3 2>/dev/null || true
 while [ $# -gt 0 ]; do
     case "$1" in
         --nterm) NTERM=$2; shift 2 ;;
         --cterm) CTERM=$2; shift 2 ;;
+        --allow-missing) ALLOW_MISSING=1; shift 1 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
+MISSING_FLAG=""
+if [ "$ALLOW_MISSING" = "1" ]; then
+    MISSING_FLAG="-missing"
+fi
 # -ter only gets turned on if the caller explicitly asked for non-default
 # termini via --nterm/--cterm (both must be given together).
 USE_TER=0
@@ -96,7 +107,7 @@ if [ "$USE_TER" = "1" ]; then
         -p topol.top \
         -water spce \
         -ff "$(basename "$FFDIR" .ff)" \
-        -ignh -ter
+        -ignh -ter $MISSING_FLAG
 else
     echo "[1/1] gmx_mpi pdb2gmx (water=spce, ignoring existing H, default charged termini)"
     gmx_mpi pdb2gmx \
@@ -105,7 +116,7 @@ else
         -p topol.top \
         -water spce \
         -ff "$(basename "$FFDIR" .ff)" \
-        -ignh
+        -ignh $MISSING_FLAG
 fi
 
 echo ""

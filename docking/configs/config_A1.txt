@@ -1,12 +1,12 @@
-receptor= GSTA1-1_GSH.pdbqt
+receptor= 1PKW_GSH.pdbqt
 
 
 
-center_x= 13.667
+center_x= 86.257
 
-center_y= 10.278
+center_y= 26.209
 
-center_z= 2.667
+center_z= 16.012
 
 
 
@@ -18,6 +18,6 @@ size_z= 15
 
 
 
-num_modes = 100
+num_modes = 10
 
 exhaustiveness = 32
