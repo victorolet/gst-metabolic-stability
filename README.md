@@ -36,7 +36,6 @@ them (bug fixes, environment quirks, modelling choices) lives in
 
 ```
 pipeline_development/
-├── ml_pipeline/            # ML stability classifier (SMILES -> stable/unstable)
 ├── docking/                 # AutoDock Vina docking (structure-based, per isoform)
 │   ├── receptors/            # per-isoform receptor PDBQT + grid configs
 │   ├── configs/               #   (raw-PDB-coordinate frame, one grid box per isoform)
@@ -59,60 +58,6 @@ pipeline_development/
 ├── docs/                     # reference diagrams (this file's companion)
 └── README.md                 # this file
 ```
-
----
-
-## Part 1 — ML pipeline (`ml_pipeline/pipeline_HAL20260712_ensemble.py`)
-
-**What it predicts:** whether a covalent ligand is metabolically *unstable*
-(i.e. reactive) to GST-mediated GSH conjugation, directly from its SMILES —
-no docking or MD needed.
-
-**Model:** a soft-voting ensemble of three classifiers (Random Forest +
-SVM + Gradient Boosting), trained with SMOTE class balancing on 8 features:
-
-- 5 RDKit molecular descriptors (`SMR_VSA7`, `SMR_VSA9`, `PEOE_VSA9`,
-  `SLogP_VSA1`, `CSP3`)
-- 3 mechanism-based electrophilicity descriptors: `omega_global` (global
-  electrophilicity index), `omega_local_warhead` (electrophilicity localised
-  to the detected warhead atom), and `alert_score` (weighted count of ~50
-  structural-alert SMARTS patterns matched — SNAr leaving groups, Michael
-  acceptors, epoxides, alkyl halides, etc.)
-
-**Pipeline stages (`main()`):**
-
-1. **`stage1_build_features`** — compute RDKit + electrophilicity descriptors
-   for every ligand in `training_data.csv` (3604 ligands: `smiles, ID,
-   GROUND_TRUTH`). Electrophilicity descriptors use xtb if available on
-   `PATH`, otherwise fall back to an RDKit-based surrogate.
-2. **`stage2_train_ml_model`** — 80/20 train/test split (721 held-out test
-   ligands), 10-fold CV, trains the ensemble.
-3. **`stage3_benchmark_and_report`** — evaluates on the held-out test set,
-   runs validation controls (bootstrap 95% CIs, Williams-leverage
-   applicability domain, y-randomisation label-shuffling control, SHAP,
-   permutation importance), and writes everything to `pipeline_outputs/`.
-
-**Validated results (`pipeline_outputs/performance_report.txt`, most recent
-run):**
-
-| | Train (n=2882) | Test (n=721) |
-|---|---|---|
-| MCC | 0.735 | 0.753 |
-| ROC-AUC | 0.985 | 0.974 |
-| Precision | 0.806 | 0.857 |
-| Recall | 0.676 | 0.667 |
-| Balanced accuracy | 0.837 | 0.833 |
-
-Y-randomisation control: true test MCC 0.753 vs. a null distribution of
--0.005 ± 0.057 over 100 label-shuffled permutations (empirical p = 0.0099) —
-the model is learning genuine signal, not fitting noise. Applicability
-domain: only 2.5% of the test set falls outside the training descriptor
-space (Williams leverage).
-
-**Running it:** no CLI arguments — reads `training_data.csv` in the working
-directory, writes to `pipeline_outputs/`. On Setonix, submit via `submit.sh`
-(SLURM, `gst_ml` conda env, 16 CPUs). Needs `rdkit`, `scikit-learn`,
-`imbalanced-learn` (SMOTE), `shap`, `matplotlib` — see `requirements.txt`.
 
 ---
 
