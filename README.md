@@ -12,9 +12,6 @@ There are two largely independent approaches living side by side in this
 repo, which is why it's split into `ml_pipeline/` and a structure-based
 `docking/` + `md/` pair:
 
-- **`ml_pipeline/`** — a ligand-only machine-learning classifier. Fast,
-  works directly from SMILES, no 3D structure or HPC docking/MD required.
-  Already trained and validated on 3604 ligands.
 - **`docking/` + `md/`** — a structure-based pipeline: dock each candidate
   against the real GST isoform structure with AutoDock Vina, then run full
   molecular dynamics (GROMACS) on the best candidates to see how the
