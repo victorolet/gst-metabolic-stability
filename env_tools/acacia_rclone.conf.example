@@ -1,0 +1,20 @@
+# Add a stanza like this to ~/.config/rclone/rclone.conf on Setonix.
+#
+# Generate ACCESS_ID/SECRET_KEY via the Pawsey portal (Acacia storage ->
+# manage keys) -- see https://pawsey.atlassian.net/wiki/x/-E0YAw. Never
+# commit real keys to this repo -- this file is a template only.
+#
+# "acacia" (the [name] in brackets) is the remote name backup_env_to_acacia.sh
+# / restore_env_from_acacia.sh expect, referenced as "acacia:bucket/path".
+#
+# acl=private (not the "public-read-write" shown in Pawsey's generic
+# example) -- these backups are conda environment contents, not something
+# that should be publicly readable.
+
+[acacia]
+type = s3
+provider = Other
+access_key_id = YOUR_ACCESS_ID
+secret_access_key = YOUR_SECRET_KEY
+endpoint = https://projects.pawsey.org.au
+acl = private

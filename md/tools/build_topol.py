@@ -2,7 +2,7 @@
 """Assemble a complex topol.top from a protein-only topol.top (as produced
 by `gmx pdb2gmx`) plus one or more extra molecules (GSH, ligand), replacing
 the manual "add unl.prm, unl.itp, GSH.prm, and GSH.itp to topol.top" step
-in Harry's workflow.
+in the project's workflow.
 
 What this does, precisely:
   1. Inserts `#include "<name>.prm"` lines for every extra molecule right
@@ -11,7 +11,7 @@ What this does, precisely:
   2. Inserts `#include "<name>.itp"` lines (each followed by an `#ifdef
      POSRES` block referencing `posre_<name>.itp`) right before the water
      topology include -- this matches the order GROMACS requires (all
-     non-water molecule types before water) and mirrors Harry's own
+     non-water molecule types before water) and mirrors the project's own
      topol.top example.
   3. Appends `<MOLNAME>   1` lines to `[ molecules ]`, in the same order
      the molecules will appear in the merged .gro file (this must match

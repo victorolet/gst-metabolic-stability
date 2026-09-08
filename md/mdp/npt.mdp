@@ -30,7 +30,7 @@ pme_order               = 4         ; cubic interpolation
 fourierspacing          = 0.16      ; grid spacing for FFT
 ; Temperature coupling
 tcoupl                  = V-rescale                     ; modified Berendsen thermostat
-tc-grps                 = Protein_LIG_UNL Water    ; two coupling groups - more accurate
+tc-grps                 = Protein_LIG_UNL Water_and_ions    ; two coupling groups - more accurate
 tau_t                   = 0.1   0.1                     ; time constant, in ps
 ref_t                   = 300   300                     ; reference temperature, one for each group, in K
 ; Pressure coupling

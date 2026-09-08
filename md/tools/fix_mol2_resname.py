@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Force every atom's substructure (residue) name in a .mol2 file to a
-fixed value, in place. Replaces Harry's manual step ("Edit ligand_fixed.mol2
+fixed value, in place. Replaces the project's manual step ("Edit ligand_fixed.mol2
 removing '*****' and replacing with the ligand name, i.e. 'UNL'") -- rather
 than hunting for a specific placeholder string, this rewrites the actual
 subst_name field of every @<TRIPOS>ATOM line and the name in

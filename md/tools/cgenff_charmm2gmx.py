@@ -16,7 +16,7 @@
 # This included various code improvements, including refactoring, type hints and better function usage.
 #
 # Sourced from https://github.com/Lemkul-Lab/cgenff_charmm2gmx (MIT license)
-# and added to this project because Harry's MD Commands workflow calls a
+# and added to this project because the project's MD Commands workflow calls a
 # script named cgenff_charmm2gmx_py3_nx2.py which is this same tool under
 # its older filename -- the Lemkul-Lab repo has since consolidated to one
 # current file (this one), same calling convention:

@@ -3,30 +3,25 @@
 #############################################
 # AutoDock Vina docking -- GSTP1-1 -- Setonix (Pawsey)
 #
-# Ported from the Kaya version (kept as gstp_docking_kaya.sh for reference).
-# See gsta_docking.sh for the full explanation of what changed and why
-# (Setonix conda pattern, array-job split for the 24h `work` walltime cap,
-# symlinked ligand staging). This file is the same structure, pointed at
-# the GSTP1-1 receptor/config/perl script.
+# Same structure as gsta_docking.sh (see there for the full rationale),
+# pointed at the GSTP1-1 receptor/config/perl script. Kaya version kept as
+# gstp_docking_kaya.sh for reference.
 #
 # ONE-TIME SETUP before first use:
 #   1. mkdir -p logs results
-#   2. Create a `vina` conda env on Setonix if one doesn't already exist:
+#   2. Create a `vina` conda env if one doesn't exist:
 #        source $MYSOFTWARE/miniconda3/etc/profile.d/conda.sh
 #        conda create -n vina -c conda-forge -c bioconda vina -y
 #   3. Run prepare_ligands.py first to generate ligand_pdbqt/ and ligand.txt.
 #
-# CHUNK_SIZE / --time below are conservative first guesses, not measured on
-# Setonix. Submit a small array first (e.g. --array=0-2), check actual
-# per-chunk runtime with `sacct -j <jobid> --format=JobID,Elapsed`, then
-# scale CHUNK_SIZE and --time for the full run accordingly.
+# CHUNK_SIZE / --time are first guesses -- submit a small array
+# (--array=0-2) and check real per-chunk time via `sacct` before scaling up.
 #
 # Folder layout expected (relative to docking/):
 #   receptors/1AQW_GSH.pdbqt  configs/config_P1.txt  scripts/Vina_rigid_P.pl
 #   ligand_pdbqt/  ligand.txt  logs/  results/
 #
-# SUBMIT FROM THE docking/ DIRECTORY (so $SLURM_SUBMIT_DIR resolves there),
-# with the array size derived from the ligand count, e.g.:
+# SUBMIT FROM THE docking/ DIRECTORY, array size derived from ligand count:
 #   cd docking/
 #   N=$(wc -l < ligand.txt); CH=50
 #   sbatch --array=0-$(( (N + CH - 1) / CH - 1 )) slurm/gstp_docking.sh
@@ -116,6 +111,5 @@ cd "$SLURM_SUBMIT_DIR"
 rm -rf "$SCRATCH"
 
 echo "Results saved to: $RESULTS"
-# (not `[ $EXIT_CODE -ne 0 ] && exit $EXIT_CODE` -- see gsta_docking.sh for
-# why that leaves a spurious nonzero exit status on success)
+# Exit with $EXIT_CODE directly -- see gsta_docking.sh / docs/implementation_notes.md
 exit $EXIT_CODE

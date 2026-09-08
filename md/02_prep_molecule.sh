@@ -1,33 +1,10 @@
 #!/bin/bash --login
-# =============================================================================
-# 02_prep_molecule.sh -- ligand OR GSH preprocessing (same procedure for both,
-# per Harry's doc: "As per 'Ligand Preprocessing' but renaming UNL to GSH")
-# =============================================================================
-# Automates:
-#   - docked-pose PDBQT, or a raw PDB/mol2, -> mol2 (obabel; mol2 input is
-#     copied through as-is)
-#   - sort_mol2_bonds.pl
-#   - residue renaming (fix_mol2_resname.py -- robust to whatever placeholder
-#     name the upstream tool used, not just a literal '*****')
-#
-# Then, because CGenFF itself has no license set up yet (webserver-only for
-# now), this script PAUSES here: it tells you where to submit the fixed
-# mol2 and where to save the resulting .str file, then exits 0. Run the
-# exact same command again afterwards -- it detects the .str file is now
-# present and finishes the job (run cgenff_charmm2gmx.py), producing
-# <resname_lc>.itp/.prm/.top/_ini.pdb. See the LP/LPH note further down for
-# why this does NOT strip LP/LPH lines by default, unlike Harry's original doc.
-#
-# IMPORTANT -- RESNAME must exactly match the "RESI ..." line inside the
-# .str file you're pairing with, not just be a convenient label. CGenFF
-# stream files carry their own internal residue name, and cgenff_charmm2gmx.py
-# looks it up by that exact string. Confirmed from Harry's actual .str files:
-# GSH's stream files (GSH_A/M/P_fixed.str) all say "RESI LIG" (a generic
-# placeholder Harry uses for GSH, NOT "GSH" or "UNL"), while the docked-ligand
-# stream files say "RESI UNL". Check with `grep '^RESI' yourfile.str` before
-# picking RESNAME -- a mismatch fails with a natoms-mismatch error in
-# cgenff_charmm2gmx.py, not a silent wrong answer, but better to get it right
-# first time.
+# Ligand OR GSH prep (same procedure for both): mol2 conversion, bond
+# sorting, residue rename, pause for manual CGenFF webserver submission,
+# then cgenff_charmm2gmx.py -> itp/prm. RESNAME must match the .str file's
+# internal RESI line exactly -- GSH's stream files say "RESI LIG", not
+# "GSH"; docked-ligand files say "RESI UNL". Check with `grep '^RESI'
+# file.str` first. Rationale + gotchas: docs/implementation_notes.md.
 #
 # Usage:
 #   ./02_prep_molecule.sh input.pdbqt|input.pdb|input.mol2 RESNAME workdir/ [ffdir]
@@ -36,7 +13,6 @@
 # Examples:
 #   ./02_prep_molecule.sh docked_pose_lig00001.pdbqt UNL runs/lig00001/
 #   ./02_prep_molecule.sh gsh_from_1pkw.pdb LIG system/gsta1_gsh_prepped/
-# =============================================================================
 set -e
 
 INPUT=$1
@@ -55,11 +31,7 @@ if [ ! -f "$INPUT" ]; then
 fi
 
 TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tools"
-# Resolve FFDIR to an absolute path now, before the `cd "$WORKDIR"` below --
-# cgenff_charmm2gmx.py opens "$FFDIR/forcefield.doc" directly using whatever
-# string it's given, so a relative FFDIR (the normal way to invoke this
-# script, e.g. "./topology/...") silently resolves against the wrong
-# directory once we've cd'd into WORKDIR otherwise.
+# Resolve FFDIR to absolute now, before cd'ing into WORKDIR below.
 FFDIR_ABS=$(cd "$(dirname "$FFDIR")" && pwd)/$(basename "$FFDIR")
 mkdir -p "$WORKDIR"
 RESNAME_LC=$(echo "$RESNAME" | tr '[:upper:]' '[:lower:]')
@@ -68,10 +40,7 @@ FIXED_MOL2="$WORKDIR/${RESNAME}_fixed.mol2"
 
 # ---- Stage 1: mol2 prep (cheap, always re-run so edits to INPUT propagate) ----
 resolve_obabel() {
-    # obabel isn't installed in either conda env (openbabel's newest build
-    # tops out at Python 3.12, incompatible with vina's pinned python=3.14)
-    # -- it's built via spack instead. Resolve it in this order: explicit
-    # OBABEL_BIN override > PATH > known spack install.
+    # obabel isn't in either conda env (spack build) -- override > PATH > known path.
     SPACK_OBABEL="/software/projects/pawsey1376/volet/setonix/2025.08/software/linux-sles15-zen3/gcc-14.2.0/openbabel-3.1.1-onem6ip5yyp7artla3orqgwac5biq3ck/bin/obabel"
     if [ -n "$OBABEL_BIN" ]; then
         :
@@ -107,13 +76,8 @@ case "$INPUT" in
         ;;
 esac
 
-# sort_mol2_bonds.pl (third-party, unmodified -- see tools/ header) hard-
-# requires the file to start with a "TRIPOS" line and dies otherwise.
-# Mol2 files exported from PyMOL (e.g. Harry's "GSH_*_fixed.mol2") carry a
-# leading "# created with PyMOL ..." comment line that trips this. Strip
-# anything before the first TRIPOS line here rather than patching the
-# third-party script, since this is likely to recur for every PyMOL-
-# exported mol2 Harry sends (ligands included).
+# Strip anything before the first TRIPOS line -- PyMOL-exported mol2s carry
+# a leading comment line that sort_mol2_bonds.pl chokes on.
 awk '/TRIPOS/{f=1} f' "$WORKDIR/raw.mol2" > "$WORKDIR/raw.mol2.tmp" && mv "$WORKDIR/raw.mol2.tmp" "$WORKDIR/raw.mol2"
 
 echo "[2/3] Sorting mol2 bond order (sort_mol2_bonds.pl)"
@@ -142,18 +106,9 @@ fi
 echo ""
 echo "Found $STR_FILE -- finishing molecule prep"
 
-# NOTE ON LP/LPH: Harry's original doc says to manually strip LP/LPH lines
-# from the .str before conversion. This version of cgenff_charmm2gmx.py
-# (fetched fresh from Lemkul-Lab, see tools/cgenff_charmm2gmx.py header) has
-# built-in lone-pair support added specifically for CGenFF >=4.0 halogens
-# (LONE parsing, is_lp(), 2fd virtual-site construction) -- stripping LP
-# lines ahead of it would likely disable correct handling of halogenated
-# warheads (exactly the SNAr/electrophile classes this project's alert_score
-# descriptor flags), which the script is designed to handle properly on its
-# own. So by default this script does NOT strip LP/LPH lines. If Harry
-# confirms his version of the workflow still needs that (e.g. an older
-# converter script without LP support), pass --strip-lp to force the old
-# behaviour -- but verify against a known-good molecule first either way.
+# LP/LPH lines are NOT stripped by default -- this cgenff_charmm2gmx.py
+# build has native lone-pair support for CGenFF>=4.0 halogens; stripping
+# would disable it. Pass --strip-lp for the old manual-doc behaviour.
 STR_TO_USE="$STR_FILE"
 if [ "$STRIP_LP" = "1" ]; then
     echo "[--strip-lp set] Removing LP/LPH lines from the stream file"

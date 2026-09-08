@@ -3,44 +3,27 @@
 #############################################
 # AutoDock Vina docking -- GSTA1-1 -- Setonix (Pawsey)
 #
-# Ported from the Kaya version (kept as gsta_docking_kaya.sh for reference).
-# What changed and why:
-#   - module/conda activation switched to Setonix's pattern -- mirrors the
-#     working ML pipeline's submit.sh ($MYSOFTWARE/miniconda3 + pawsey1376
-#     account), not guessed from scratch.
-#   - split into a SLURM ARRAY job. Setonix's `work` partition caps walltime
-#     at 24h; the original single job requested 48h to dock ~3600 ligands
-#     one at a time serially, which won't fit. Each array task now docks
-#     CHUNK_SIZE ligands instead of the whole list, so many chunks run in
-#     parallel as separate 24h-capped jobs instead of one long serial job.
-#   - ligand PDBQTs are symlinked from ligand_pdbqt/ into scratch rather
-#     than copied wholesale, since there can be thousands of them.
+# SLURM array job (Kaya version kept as gsta_docking_kaya.sh for reference):
+# each task docks CHUNK_SIZE ligands, since the `work` partition's 24h
+# walltime cap can't fit ~3600 ligands serially in one job. Ligand PDBQTs
+# are symlinked into scratch, not copied (there can be thousands). Details:
+# ../../docs/implementation_notes.md.
 #
 # ONE-TIME SETUP before first use:
 #   1. mkdir -p logs results
-#      (SBATCH --output requires logs/ to already exist when the job starts)
-#   2. Create a `vina` conda env on Setonix if one doesn't already exist:
+#   2. Create a `vina` conda env if one doesn't exist:
 #        source $MYSOFTWARE/miniconda3/etc/profile.d/conda.sh
 #        conda create -n vina -c conda-forge -c bioconda vina -y
 #   3. Run prepare_ligands.py first to generate ligand_pdbqt/ and ligand.txt.
 #
-# CHUNK_SIZE / --time below are conservative first guesses, not measured
-# on Setonix. Submit a small array first (e.g. --array=0-2), check actual
-# per-chunk runtime with `sacct -j <jobid> --format=JobID,Elapsed`, then
-# scale CHUNK_SIZE and --time for the full run accordingly.
+# CHUNK_SIZE / --time are first guesses -- submit a small array
+# (--array=0-2) and check real per-chunk time via `sacct` before scaling up.
 #
 # Folder layout expected (relative to docking/):
 #   receptors/1PKW_GSH.pdbqt  configs/config_A1.txt  scripts/Vina_rigid_A.pl
 #   ligand_pdbqt/  ligand.txt  logs/  results/
 #
-# NOTE (2026-08-06): receptor/config updated to Harry's raw-PDB-coordinate
-# versions -- config_A1.txt's own "receptor=" line must match the filename
-# actually staged into scratch (see RECEPTOR= below), since Vina reads the
-# receptor path from inside the config file, not from this script directly.
-# Old overlaid-frame files are kept in receptors/configs/legacy_overlaid/.
-#
-# SUBMIT FROM THE docking/ DIRECTORY (so $SLURM_SUBMIT_DIR resolves there),
-# with the array size derived from the ligand count, e.g.:
+# SUBMIT FROM THE docking/ DIRECTORY, array size derived from ligand count:
 #   cd docking/
 #   N=$(wc -l < ligand.txt); CH=50
 #   sbatch --array=0-$(( (N + CH - 1) / CH - 1 )) slurm/gsta_docking.sh
@@ -130,9 +113,6 @@ cd "$SLURM_SUBMIT_DIR"
 rm -rf "$SCRATCH"
 
 echo "Results saved to: $RESULTS"
-# (not `[ $EXIT_CODE -ne 0 ] && exit $EXIT_CODE` -- when EXIT_CODE is 0 the
-# test itself evaluates false/exit-1, and since nothing else runs after it,
-# THAT becomes the script's own exit status -- SLURM then reports the task
-# as FAILED even though everything upstream genuinely succeeded. Exiting
-# with $EXIT_CODE directly avoids the trap entirely.)
+# Exit with $EXIT_CODE directly -- see docs/implementation_notes.md (the
+# conditional form leaves a spurious FAILED status on success).
 exit $EXIT_CODE

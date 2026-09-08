@@ -11,7 +11,7 @@
 ;	
 ;	Executable:   /usr/bin/gmx
 ;	Data prefix:  /usr
-;	Working dir:  /home/harryl/THESIS/MD/SET391_1
+;	Working dir:  /home/chemist/THESIS/MD/SET391_1
 ;	Command line:
 ;	  gmx pdb2gmx -f protein.pdb -o protein_processed.gro -ignh -ter
 ;	Force field was read from current directory or a relative path - path added.

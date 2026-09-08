@@ -11,8 +11,8 @@ use strict;
 #
 # Written by: Justin Lemkul (jalemkul@vt.edu)
 # Sourced from https://github.com/DweipayanG/GROMACS-Protein-Ligand and added
-# to this project because Harry's MD Commands workflow calls it but the file
-# itself wasn't included in his handoff.
+# to this project because the project's MD Commands workflow calls it but the
+# file itself wasn't included in the original handoff.
 #
 # Distributed under the GPL-3.0 license
 
